@@ -11,6 +11,7 @@ import requests
 import json
 import praw
 from prawoauth2 import PrawOAuth2Mini
+import sqlite3 as lite
 
 """
 SETTINGS
@@ -163,14 +164,13 @@ def read_position(ch_name):
     #TO DO: Use this function to read each file and see what's been uploaded
     Also, make script work if file doesn't exist.
     """
-    read = open('/home/ubuntu/Dropbox/RTBot/' + ch_name + '.txt', 'r')
     vid_ids = []
-    data = read.readlines()
-    read.close()
-    lines = data
-    for line in lines:
-        vid_id = line.split(",.|.,")
-        vid_ids.append(vid_id[1][:-1])
+    with lite.connect('RT.db',detect_types=lite.PARSE_DECLTYPES|lite.PARSE_COLNAMES,isolation_level=None) as con:
+        cur = con.cursor()
+        cur.execute("SELECT id FROM %s" % ch_name)
+        rows = cur.fetchall()
+        for row in rows:
+            vid_ids.append(row[0])
     return vid_ids
 
 def save_position(ch_name, vid_id, title):
@@ -179,11 +179,12 @@ def save_position(ch_name, vid_id, title):
     Have a file per channel, and append the video with ID.
     Also, make script work if file doesn't exist.
     """
-    save = open('/home/ubuntu/Dropbox/RTBot/' + ch_name + '.txt', 'a')
-    new_title = title.encode('utf-8')
-    new_id = str(vid_id).encode('utf-8')
-    save.write(new_title + ',.|.,' + new_id + '\n')
-    save.close()
+    with lite.connect('RT.db',detect_types=lite.PARSE_DECLTYPES|lite.PARSE_COLNAMES,isolation_level=None) as con:
+        cur = con.cursor()
+        new_title = title.encode('utf-8')
+        new_id = str(vid_id).encode('utf-8')
+        cur.execute("INSERT INTO %s VALUES (?, ?)" % ch_name, (new_title, new_id))
+        con.commit()
 
 """
 REDDIT FUNCTIONS
